@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YT Timed Subscriber</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      width: 350px;
+      padding: 15px;
+      font-size: 14px;
+    }
+    h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="file"] {
+      display: block;
+      margin-bottom: 15px;
+      width: 95%;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #statusDisplay {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+      min-height: 40px;
+      word-wrap: break-word;
+    }
+    #countdownDisplay {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #d35400;
+      text-align: center;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <h3>YouTube Timed Subscriber</h3>
+
+  <label for="csvFile">Select CSV File:</label>
+  <input type="file" id="fileInput" accept=".csv,.txt">
+
+  <button id="startButton">Start Processing</button>
+
+  <div id="statusDisplay">Ready. Select a CSV file.</div>
+  <div id="countdownDisplay" style="display:none;"></div>
+
+  <!-- At the bottom of popup/popup.html -->
+<!-- <script src="../shared/helpers.js"></script> --> <!-- We need formatTime and isValidYouTubeChannelUrl -->
+<script src="popup.js" type="module"></script>
+</body>
+</html>

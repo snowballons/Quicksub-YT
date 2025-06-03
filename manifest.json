@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Timed Subscriber",
+  "version": "0.2.0", // Increment version for refactor
+  "description": "Assists in manually subscribing to YouTube channels from a list with timed intervals.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting" // Still useful for future, even if not heavily used by popup now
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html", // Updated path
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/background_main.js", // Updated path
+    "type": "module" // Added for ES6 module support
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

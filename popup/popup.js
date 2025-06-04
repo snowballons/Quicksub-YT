@@ -1,325 +1,412 @@
 // popup/popup.js
-import { isValidYouTubeChannelUrl, formatTime } from '../shared/helpers.js'; // ADD THIS LINE AT THE TOP
+import { isValidYouTubeChannelUrl, formatTime } from '../shared/helpers.js';
 
-// popup/popup.js
-console.log("Popup script v2.1 (Session Logic) loaded.");
-
-// Ensure isValidYouTubeChannelUrl and formatTime are globally available from shared/helpers.js
-// as they are loaded via <script> tag in popup.html before this script.
+console.log("Popup script v2.6 (UI Polish: Clear Queue & Icon) loaded.");
 
 document.addEventListener('DOMContentLoaded', function() {
-    const csvFileInput = document.getElementById('csvFile');
+    const fileInput = document.getElementById('fileInput');
     const startButton = document.getElementById('startButton');
     const statusDisplay = document.getElementById('statusDisplay');
     const countdownDisplay = document.getElementById('countdownDisplay');
+    const youtubeUrlInput = document.getElementById('youtubeUrlInput'); // This will now accept multiple URLs
+    const addUrlButton = document.getElementById('addUrlButton');
+    const singleUrlStatus = document.getElementById('singleUrlStatus'); // Will be used for feedback on multiple URLs
+    const clearQueueButton = document.getElementById('clearQueueButton'); // New button
 
     let channelUrlsToProcess = [];
     let countdownInterval = null;
     let cooldownUpdateInterval = null;
 
-    // --- CSV File Input Listener ---
-    csvFileInput.addEventListener('change', function(event) {
-        clearCountdown();
-        clearCooldownDisplayUpdater();
-        channelUrlsToProcess = []; // Clear previous URLs
-        startButton.disabled = true; // Disable until we confirm cooldown status and file validity
+    startButton.disabled = true;
+    updateClearQueueButton(); // Initialize clear queue button text
+    checkUsageAndSetButtonState(); // Initial UI setup
 
+    // --- File Input Listener --- (No change from v2.3)
+    fileInput.addEventListener('change', function(event) { /* ... same as v2.3 ... */
+        clearCountdown(); clearCooldownDisplayUpdater(); startButton.disabled = true;
         if (event.target.files && event.target.files.length > 0) {
             const file = event.target.files[0];
-            if (file.name.endsWith('.csv')) {
-                // Don't immediately enable startButton; checkUsageAndSetButtonState will do it
-                checkUsageAndSetButtonState(true, `File selected: ${file.name}.`);
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+                handleFileProcessing(file);
             } else {
-                statusDisplay.textContent = 'Error: Please select a .csv file.';
-                csvFileInput.value = ''; // Reset file input
+                singleUrlStatus.textContent = ''; statusDisplay.textContent = 'Error: Please select a .csv or .txt file.';
+                fileInput.value = ''; updateStartButtonBasedOnQueueAndCooldown();
             }
-        } else {
-            statusDisplay.textContent = 'No file selected. Ready. Select a CSV file.';
-            // startButton remains disabled
-        }
+        } else { updateStartButtonBasedOnQueueAndCooldown(); }
     });
 
-    // --- Start Button Listener ---
-    startButton.addEventListener('click', function() {
-        clearCountdown();
-        clearCooldownDisplayUpdater(); // Stop any active UI updaters
+    // --- MODIFIED Add URL Button Listener (Smart: YouTube URLs or Webpage Scan) ---
+    addUrlButton.addEventListener('click', function() {
+        const urlString = youtubeUrlInput.value.trim(); // Can be one or more YT URLs, or one webpage URL
+        singleUrlStatus.textContent = '';
 
-        if (csvFileInput.files.length === 0) {
-            statusDisplay.textContent = 'Error: No CSV file selected.';
+        if (!urlString) {
+            singleUrlStatus.textContent = 'Please enter URL(s) or a webpage link.';
             return;
         }
-        const file = csvFileInput.files[0];
-        handleFileProcessing(file); // This will parse and then attempt to send to background
+
+        // Try to parse as a single URL first to check its structure
+        let isPotentiallyScannableWebpage = false;
+        let isLikelyYouTubeDomain = false;
+        try {
+            const parsedUrl = new URL(urlString); // Test if it's a single, valid URL structure
+            isLikelyYouTubeDomain = parsedUrl.hostname.includes("youtube.com") || parsedUrl.hostname.includes("youtu.be");
+            if (!isLikelyYouTubeDomain && urlString.split(',').length === 1) { // Only one URL, and not YouTube
+                isPotentiallyScannableWebpage = true;
+            }
+        } catch (_) {
+            // If it fails to parse as a single URL, it might be comma-separated list (or just invalid)
+            // The comma-separated logic below will handle it.
+        }
+
+        if (isPotentiallyScannableWebpage) {
+            // --- Initiate Webpage Scan ---
+            singleUrlStatus.textContent = `Scanning webpage: ${urlString.substring(0,40)}...`;
+            disableAllInputs(); // Disable inputs during scan
+            chrome.runtime.sendMessage(
+                { action: "scanWebpageForChannels", pageUrl: urlString },
+                handleWebpageScanResponse
+            );
+        } else {
+            // --- Process as Comma-Separated YouTube URLs (Logic from v2.4) ---
+            const urlsArray = urlString.split(',').map(url => url.trim()).filter(url => url);
+            let addedCount = 0; let invalidCount = 0; let videoUrlFound = false;
+            if (urlsArray.length === 0) { singleUrlStatus.textContent = 'No URLs after trimming.'; return; }
+
+            urlsArray.forEach(url => {
+                try { new URL(url); } catch (_) { invalidCount++; return; }
+                if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                    if (isValidYouTubeChannelUrl(url)) {
+                        if (addUrlToQueueInternal(url)) addedCount++;
+                    } else if (url.includes("/watch?v=") || url.includes("youtu.be/")) {
+                        videoUrlFound = true;
+                    } else { invalidCount++; }
+                } else { invalidCount++; }
+            });
+
+            let message = "";
+            if (addedCount > 0) message += `${addedCount} valid channel URL(s) added. `;
+            if (videoUrlFound) message += `Video URLs ignored (feature deferred). `;
+            if (invalidCount > 0) message += `${invalidCount} invalid/non-channel entries ignored.`;
+            singleUrlStatus.textContent = message.trim() || "No new valid channel URLs processed.";
+
+            if (addedCount > 0 || channelUrlsToProcess.length > 0) youtubeUrlInput.value = '';
+            updateMainStatusWithQueueCount();
+            updateStartButtonBasedOnQueueAndCooldown();
+        }
     });
 
-    // --- Handle File Processing (Parsing) ---
-    function handleFileProcessing(file) {
-        startButton.disabled = true;
-        csvFileInput.disabled = true; // Disable while parsing and attempting to start
-        statusDisplay.textContent = `Reading ${file.name}...`;
-        channelUrlsToProcess = [];
+    // --- Start Button Listener --- (No change from v2.3)
+    startButton.addEventListener('click', function() { /* ... same as v2.3 ... */
+        clearCountdown(); clearCooldownDisplayUpdater();
+        if (channelUrlsToProcess.length === 0) { statusDisplay.textContent = 'Error: No URLs in queue.'; return; }
+        statusDisplay.textContent = `Attempting to start processing ${channelUrlsToProcess.length} URLs...`;
+        disableAllInputs();
+        chrome.runtime.sendMessage( { action: "startProcessingUrls", urls: channelUrlsToProcess }, handleBackgroundResponseForStart );
+    });
 
+    // --- Clear Queue Button Listener --- (NEW)
+    clearQueueButton.addEventListener('click', function() {
+        channelUrlsToProcess = [];
+        singleUrlStatus.textContent = 'URL queue cleared.';
+        youtubeUrlInput.value = ''; // Optionally clear the input field too
+        fileInput.value = ''; // Clear selected file
+        updateClearQueueButton();
+        updateMainStatusWithQueueCount(); // This will call checkUsageAndSetButtonState
+        // If a cooldown is active, statusDisplay will show that, otherwise it'll show ready state.
+    });
+
+    // --- Helper to add URL to queue (internal, returns true if added, false if duplicate) ---
+    function addUrlToQueueInternal(url) { // Renamed from addUrlToQueue
+        if (!channelUrlsToProcess.includes(url)) {
+            channelUrlsToProcess.push(url);
+            updateClearQueueButton(); // Update count on button
+            return true; // Added
+        }
+        return false; // Duplicate
+    }
+
+    // --- Helper to update Clear Queue button text --- (NEW)
+    function updateClearQueueButton() {
+        clearQueueButton.textContent = `Clear Queue (${channelUrlsToProcess.length})`;
+        clearQueueButton.disabled = channelUrlsToProcess.length === 0;
+    }
+
+    // --- Helper function to handle webpage scan response --- (NEW)
+    function handleWebpageScanResponse(response) {
+        enablePrimaryInputs(); // Re-enable inputs after scan attempt
+        updateStartButtonBasedOnQueueAndCooldown(); // Update start button state
+
+        if (chrome.runtime.lastError) {
+            singleUrlStatus.textContent = `Error scanning page: ${chrome.runtime.lastError.message}`;
+            return;
+        }
+        if (response && response.error) {
+            singleUrlStatus.textContent = `Scan error: ${response.error}`;
+            if (response.foundUrls && response.foundUrls.length > 0) { // If some URLs were found before an error
+                let newUrlsAddedCount = 0;
+                response.foundUrls.forEach(url => { if (addUrlToQueueInternal(url)) newUrlsAddedCount++; });
+                singleUrlStatus.textContent += ` Found ${newUrlsAddedCount} URL(s) before error.`;
+            }
+        } else if (response && response.foundUrls) {
+            if (response.foundUrls.length > 0) {
+                let newUrlsAddedCount = 0;
+                response.foundUrls.forEach(url => { if (addUrlToQueueInternal(url)) newUrlsAddedCount++; });
+                singleUrlStatus.textContent = `Scan complete: ${newUrlsAddedCount} new unique YouTube channel URL(s) added to queue.`;
+                if (newUrlsAddedCount === 0 && response.foundUrls.length > 0) {
+                    singleUrlStatus.textContent = `Scan complete: Found ${response.foundUrls.length} channel URLs (already in queue or duplicates on page).`;
+                }
+            } else {
+                singleUrlStatus.textContent = response.message || "Scan complete: No YouTube channel URLs found on the page.";
+            }
+        } else {
+            singleUrlStatus.textContent = "Scan failed: Unknown response from background.";
+        }
+        youtubeUrlInput.value = ''; // Clear input after scan attempt
+        updateMainStatusWithQueueCount();
+    }
+
+    // --- Modified disableAllInputs & enablePrimaryInputs ---
+    function disableAllInputs() {
+        startButton.disabled = true;
+        fileInput.disabled = true;
+        youtubeUrlInput.disabled = true;
+        addUrlButton.disabled = true;
+        clearQueueButton.disabled = true; // Disable clear queue during processing
+    }
+    function enablePrimaryInputs() {
+        fileInput.disabled = false;
+        youtubeUrlInput.disabled = false;
+        addUrlButton.disabled = false;
+        updateClearQueueButton(); // Enable clear queue if queue has items
+        // startButton state determined by checkUsageAndSetButtonState
+    }
+
+    // --- Modified updateMainStatusWithQueueCount & updateStartButtonBasedOnQueueAndCooldown ---
+    function updateMainStatusWithQueueCount() {
+        updateClearQueueButton(); // Keep clear button count updated
+        if (channelUrlsToProcess.length > 0) {
+            if (!statusDisplay.textContent.toLowerCase().includes("cooldown") && !statusDisplay.textContent.toLowerCase().includes("session limit")) {
+                 checkUsageAndSetButtonState(true);
+            }
+        } else { checkUsageAndSetButtonState(false); }
+    }
+    function updateStartButtonBasedOnQueueAndCooldown() {
+        updateClearQueueButton(); // Also update clear button when start button state might change
+        checkUsageAndSetButtonState(channelUrlsToProcess.length > 0);
+    }
+
+    // --- Handle File Processing (Parsing) --- (No change from v2.3, still adds to channelUrlsToProcess)
+    function handleFileProcessing(file) { /* ... same as v2.3 ... */
+        disableAllInputs(); statusDisplay.textContent = `Reading ${file.name}...`;
         const reader = new FileReader();
         reader.onload = function(e) {
-            const text = e.target.result;
-            const lines = text.split('\n');
-            let headerSkipped = false;
-
-            if (lines.length === 0) {
-                statusDisplay.textContent = 'Error: CSV file is empty.';
-                resetControls(); // This enables CSV input again
-                return;
-            }
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                if (!headerSkipped && line.toLowerCase() === "channel id,channel url,channel title") {
-                    headerSkipped = true;
-                    console.log("Skipped header row:", line);
-                    continue;
-                }
-
-                const columns = line.split(',');
-                let potentialUrl = "";
-
-                if (columns.length === 1) {
-                    potentialUrl = columns[0].trim();
-                } else if (columns.length > 1) {
-                    potentialUrl = columns[1].trim();
-                } else {
-                    console.warn(`Skipped line with no processable columns: ${line} from line: ${i + 1}`);
-                    continue;
-                }
-
-                if (potentialUrl.startsWith('"') && potentialUrl.endsWith('"')) {
-                    potentialUrl = potentialUrl.substring(1, potentialUrl.length - 1);
-                }
-
-                if (isValidYouTubeChannelUrl(potentialUrl)) { // Uses global helper
-                    channelUrlsToProcess.push(potentialUrl);
-                } else {
-                    if (!(headerSkipped && i === lines.findIndex(l => l.toLowerCase() === "channel id,channel url,channel title") && potentialUrl.toLowerCase() === "channel url")) {
-                         console.warn(`Skipped invalid or non-YouTube URL: ${potentialUrl} from line: ${i + 1}`);
+            const text = e.target.result; const lines = text.split('\n'); let urlsFromFile = []; let headerSkipped = false;
+            if (lines.length === 0 && file.name.endsWith('.csv')) { statusDisplay.textContent = 'Error: CSV file appears empty.'; enablePrimaryInputs(); updateStartButtonBasedOnQueueAndCooldown(); return; }
+            if (file.name.endsWith('.csv')) {
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim(); if (!line) continue;
+                    if (!headerSkipped && line.toLowerCase() === "channel id,channel url,channel title") {
+                        headerSkipped = true; console.log("Skipped CSV header:", line); continue;
                     }
+                    const columns = line.split(','); let potentialUrl = "";
+                    if (columns.length === 1) potentialUrl = columns[0].trim();
+                    else if (columns.length > 1) potentialUrl = columns[1].trim();
+                    else continue;
+                    if (potentialUrl.startsWith('"') && potentialUrl.endsWith('"')) potentialUrl = potentialUrl.substring(1, potentialUrl.length - 1);
+                    if (isValidYouTubeChannelUrl(potentialUrl)) urlsFromFile.push(potentialUrl);
+                    else if (potentialUrl && !(headerSkipped && line.toLowerCase().includes("channel url"))) console.warn(`CSV: Skipped invalid: ${potentialUrl}`);
                 }
-            } // End of for loop
-
-            if (channelUrlsToProcess.length > 0) {
-                // Status will be updated based on background response
-                console.log("Attempting to send URLs to background:", channelUrlsToProcess);
-                chrome.runtime.sendMessage(
-                    { action: "startProcessingUrls", urls: channelUrlsToProcess },
-                    handleBackgroundResponseForStart // Use the dedicated handler
-                );
-            } else {
-                statusDisplay.textContent = 'Error: No valid YouTube channel URLs found in the CSV.';
-                resetControls(); // This enables CSV input again
             }
-        }; // End of reader.onload
-
-        reader.onerror = function(e) {
-            statusDisplay.textContent = 'Error reading file.';
-            console.error("FileReader error:", e);
-            resetControls(); // This enables CSV input again
+            else if (file.name.endsWith('.txt')) {
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim(); if (!line) continue;
+                    if (isValidYouTubeChannelUrl(line)) urlsFromFile.push(line);
+                    else console.warn(`TXT: Skipped invalid: ${line}`);
+                }
+            }
+            let newUrlsAddedCount = 0; urlsFromFile.forEach(url => { if (addUrlToQueueInternal(url)) newUrlsAddedCount++; });
+            if (newUrlsAddedCount > 0) singleUrlStatus.textContent = `${newUrlsAddedCount} new URL(s) added from ${file.name}.`;
+            else if (urlsFromFile.length > 0) singleUrlStatus.textContent = `No new unique URLs from ${file.name}.`;
+            else singleUrlStatus.textContent = `No valid URLs found in ${file.name}.`;
+            fileInput.value = ''; enablePrimaryInputs(); updateMainStatusWithQueueCount();
         };
+        reader.onerror = function(e) { statusDisplay.textContent = 'Error reading file.'; console.error("FileReader error:", e); enablePrimaryInputs(); updateStartButtonBasedOnQueueAndCooldown(); };
         reader.readAsText(file);
-    } // End of handleFileProcessing
+    }
 
-    // --- Handle Background Response for Start ---
     function handleBackgroundResponseForStart(response) {
         if (chrome.runtime.lastError) {
-            console.error("Error sending message to background:", chrome.runtime.lastError.message);
             statusDisplay.textContent = `Error: ${chrome.runtime.lastError.message}.`;
-            resetControls(false); // Re-enable file input, keep start disabled until resolved
-            startButton.disabled = true;
+            enablePrimaryInputs(); updateStartButtonBasedOnQueueAndCooldown();
         } else if (response) {
             if (response.status === "received") {
                 statusDisplay.textContent = `Processing up to ${response.count} URLs. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used.`;
-                // Controls (startButton, csvFileInput) remain disabled while background processes
+                // Inputs remain disabled during processing by background
             } else if (response.status === "cooldown_active" && response.reason === "hard_cooldown") {
-                displayHardCooldown(response.remainingMs);
-                // resetControls(false) is implicitly handled by displayHardCooldown re-enabling file input
-                startButton.disabled = true; // Ensure start button is disabled
+                displayHardCooldown(response.remainingMs); // This enables primary inputs
             } else if (response.status === "session_limit") {
                 statusDisplay.textContent = `${response.message} (${response.linksUsedInSession}/${response.maxSessionLinks})`;
-                resetControls(false); // Re-enable file input
-                startButton.disabled = true; // Session limit reached
-            } else { // Other errors from background
+                enablePrimaryInputs(); startButton.disabled = true; // Session limit reached
+            } else {
                 statusDisplay.textContent = "Background error: " + (response.message || "Unknown");
-                resetControls(false); // Re-enable file input
-                startButton.disabled = true;
+                enablePrimaryInputs(); updateStartButtonBasedOnQueueAndCooldown();
             }
         } else {
-             statusDisplay.textContent = "No response from background. Try reloading extension.";
-             resetControls(false); // Re-enable file input
-             startButton.disabled = true;
+             statusDisplay.textContent = "No response from background.";
+             enablePrimaryInputs(); updateStartButtonBasedOnQueueAndCooldown();
         }
     }
 
     // --- Message Listener from Background ---
+    // REMOVE/COMMENT OUT "channelExtracted" and "channelExtractionFailed" handlers or make them note feature is deferred
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.action === "showCountdown") {
+        // Re-enable single URL add button unless an action is taking place that disables it
+        // This logic becomes simpler as we don't wait for background for single URL adds anymore (except for start processing)
+        if(message.action !== "startProcessingUrls" && message.action !== "showCountdown") {
+             youtubeUrlInput.disabled = false; // Should be re-enabled by other flows typically
+             addUrlButton.disabled = false;
+        }
+
+        if (message.action === "showCountdown") { /* ... same as v2.3 ... */
             statusDisplay.textContent = `[${message.current}/${message.total} this batch] Presenting: ${message.channelName}`;
             startVisualCountdown(message.duration);
-            sendResponse({status: "countdown_started"}); // Acknowledge
+            sendResponse({status: "countdown_started"});
         } else if (message.action === "processingCompleteWithCooldown") {
-            clearCountdown();
-            countdownDisplay.style.display = "none";
-            const cooldownEnds = new Date(message.cooldownUntil).toLocaleTimeString();
-            statusDisplay.textContent = `Batch complete. ${message.linksUsedInSession}/${message.maxSessionLinks} session links used. Hard cooldown until ${cooldownEnds}.`;
-            displayHardCooldown(message.cooldownUntil - Date.now());
-            // resetControls(true) // Don't clear file, let displayHardCooldown handle UI
-            csvFileInput.value = ''; // Clear file input after successful batch & cooldown
-            startButton.disabled = true; // Start button remains disabled during cooldown
+            clearCountdown(); countdownDisplay.style.display = "none";
+            channelUrlsToProcess = []; // Clear queue
+            // Clear inputs
+            fileInput.value = ''; youtubeUrlInput.value = ''; singleUrlStatus.textContent = '';
+            updateClearQueueButton(); // Update count to (0) and disable
+            displayHardCooldown(message.cooldownUntil - Date.now()); // This handles disabling startButton
         } else if (message.action === "processingCompleteNoCooldown") {
-            clearCountdown();
-            countdownDisplay.style.display = "none";
+            clearCountdown(); countdownDisplay.style.display = "none";
+            channelUrlsToProcess = []; // Clear queue
+            fileInput.value = ''; youtubeUrlInput.value = ''; singleUrlStatus.textContent = '';
             statusDisplay.textContent = `${message.message} (${message.linksUsedInSession}/${message.maxSessionLinks} total session links used).`;
-            resetControls(true); // Clear file input, ready for new selection
-            checkUsageAndSetButtonState(false); // Update UI based on new session state
+            updateClearQueueButton(); // Update count to (0) and disable
+            enablePrimaryInputs(); // Re-enable inputs
+            checkUsageAndSetButtonState(false); // Update UI based on new session state (queue is now empty)
         }
-        return true; // Indicate async response if any handler needs it
+        // No longer expecting "channelExtracted" or "channelExtractionFailed" from background for now
+        // else if (message.action === "channelExtracted") { ... }
+        // else if (message.action === "channelExtractionFailed") { ... }
+        return true;
     });
 
-    // --- UI Update Functions ---
-    function displayHardCooldown(remainingMs) {
-        clearCooldownDisplayUpdater(); // Clear any previous timer
-        csvFileInput.disabled = false; // Allow selecting a new file during cooldown
-        startButton.disabled = true;   // But cannot start
+    // --- NO MORE handleChannelExtractionResponse function needed from v2.3 ---
+    // function handleChannelExtractionResponse(response) { ... } // REMOVE THIS
+
+    // --- UI Update Functions (displayHardCooldown, updateUIAfterCooldownOrSessionReset, checkUsageAndSetButtonState) --- (No change from v2.3)
+    function displayHardCooldown(remainingMs) { /* ... same as v2.3 ... */
+        clearCooldownDisplayUpdater();
+        enablePrimaryInputs(); // Allow adding more URLs even during cooldown
+        startButton.disabled = true;
 
         if (remainingMs > 0) {
-            statusDisplay.textContent = `Hard Cooldown! Remaining: ${formatTime(remainingMs)}`; // Uses global helper
+            statusDisplay.textContent = `Hard Cooldown! Remaining: ${formatTime(remainingMs)}`;
             cooldownUpdateInterval = setInterval(() => {
-                // Ask background for the authoritative current cooldown status
                 chrome.runtime.sendMessage({action: "checkCooldown"}, response => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Error checking cooldown during interval:", chrome.runtime.lastError.message);
-                        updateUIAfterCooldownOrSessionReset(); // Try to recover UI
-                        return;
+                    if (chrome.runtime.lastError || !response) {
+                        console.warn("Error checking cooldown interval:", chrome.runtime.lastError?.message);
+                        updateUIAfterCooldownOrSessionReset(); return;
                     }
-                    if (response && response.status === "cooldown_active" && response.reason === "hard_cooldown") {
+                    if (response.status === "cooldown_active" && response.reason === "hard_cooldown") {
                         if (response.remainingMs > 0) {
                             statusDisplay.textContent = `Hard Cooldown! Remaining: ${formatTime(response.remainingMs)}`;
-                        } else { // Cooldown just finished
-                            updateUIAfterCooldownOrSessionReset(response);
-                        }
-                    } else { // Cooldown ended or other state (e.g., session info if not hard cooldown)
-                        updateUIAfterCooldownOrSessionReset(response);
-                    }
+                        } else { updateUIAfterCooldownOrSessionReset(response); }
+                    } else { updateUIAfterCooldownOrSessionReset(response); }
                 });
-            }, 1000); // Update display every second
-        } else { // remainingMs <= 0 initially
-            updateUIAfterCooldownOrSessionReset(); // Call with no specific usageInfo to get defaults
-        }
+            }, 1000);
+        } else { updateUIAfterCooldownOrSessionReset(); }
     }
 
-    function updateUIAfterCooldownOrSessionReset(usageInfo = null) {
+    function updateUIAfterCooldownOrSessionReset(usageInfo = null) { /* ... same as v2.3 ... */
         clearCooldownDisplayUpdater();
-        csvFileInput.disabled = false; // Always allow file input to be enabled here
+        enablePrimaryInputs();
+
+        const hasQueuedUrls = channelUrlsToProcess.length > 0;
+        const fileSelectedAndValid = fileInput.files && fileInput.files.length > 0 && (fileInput.files[0].name.endsWith('.csv') || fileInput.files[0].name.endsWith('.txt'));
 
         if (usageInfo) {
-            if (usageInfo.reason === "session_limit_reached" && !usageInfo.allowProcessing) {
-                statusDisplay.textContent = `Session limit reached (${usageInfo.linksUsedInSession}/${usageInfo.maxSessionLinks}). Wait for reset.`;
-                startButton.disabled = true;
-            } else { // OK to process or just general info
-                 statusDisplay.textContent = `Ready. Session: ${usageInfo.linksUsedInSession}/${usageInfo.maxSessionLinks} used.`;
-                 // Enable startButton only if a valid file is already selected
-                 startButton.disabled = !(csvFileInput.files && csvFileInput.files.length > 0 && csvFileInput.files[0].name.endsWith('.csv') && usageInfo.allowProcessing);
+            const canProcessNow = usageInfo.allowProcessing && (hasQueuedUrls || fileSelectedAndValid);
+            startButton.disabled = !canProcessNow;
+
+            if (!usageInfo.allowProcessing && usageInfo.reason === "session_limit_reached") {
+                statusDisplay.textContent = `Session limit (${usageInfo.linksUsedInSession}/${usageInfo.maxSessionLinks}). Wait for reset. Queue: ${channelUrlsToProcess.length}.`;
+            } else if (canProcessNow) {
+                 statusDisplay.textContent = `Ready. Session: ${usageInfo.linksUsedInSession}/${usageInfo.maxSessionLinks}. Queue: ${channelUrlsToProcess.length}.`;
+            } else if (hasQueuedUrls && !usageInfo.allowProcessing){ // Has queue, but session/cooldown prevents
+                 statusDisplay.textContent = `Queue: ${channelUrlsToProcess.length}. Cannot start (session/cooldown).`;
             }
-        } else { // Called when cooldown finishes, or initially if no cooldown was active
-            statusDisplay.textContent = "Ready. Select a CSV file.";
-            // Enable startButton only if a valid file is already selected
-            startButton.disabled = !(csvFileInput.files && csvFileInput.files.length > 0 && csvFileInput.files[0].name.endsWith('.csv'));
+             else { // No queued URLs, ready for input
+                 statusDisplay.textContent = `Ready. Session: ${usageInfo.linksUsedInSession}/${usageInfo.maxSessionLinks}. Select file or add URL.`;
+            }
+        } else { // Called when cooldown finishes, get fresh state
+            checkUsageAndSetButtonState(hasQueuedUrls || fileSelectedAndValid);
         }
     }
 
-    function checkUsageAndSetButtonState(isFileCurrentlySelectedAndValid = false, statusMsgIfReadyAndFileSelected = null) {
-        // This function is called when popup opens or file is selected
+    function checkUsageAndSetButtonState(isFileOrUrlQueued = false, statusMsgIfReady = null) {
+        updateClearQueueButton(); // Ensure clear button is always in sync
         chrome.runtime.sendMessage({action: "checkCooldown"}, response => {
-            if (chrome.runtime.lastError) {
+            if (chrome.runtime.lastError || !response) {
                 statusDisplay.textContent = "Error checking status. Try reloading.";
-                startButton.disabled = true;
-                csvFileInput.disabled = false;
-                return;
+                disableAllInputs(); enablePrimaryInputs(); updateClearQueueButton(); startButton.disabled = true; return;
             }
-            if (response) {
-                if (response.status === "cooldown_active" && response.reason === "hard_cooldown") {
-                    displayHardCooldown(response.remainingMs);
-                    // displayHardCooldown handles disabling startButton and enabling csvFileInput
-                } else if (response.status === "usage_info") { // General usage info
-                    clearCooldownDisplayUpdater(); // Stop any active cooldown display
-                    csvFileInput.disabled = false; // File input always enabled if not hard cooldown
 
-                    if (response.allowProcessing && isFileCurrentlySelectedAndValid) {
-                        startButton.disabled = false;
-                        statusDisplay.textContent = statusMsgIfReadyAndFileSelected || `Ready. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used. ${response.linksAvailableInSession} available.`;
-                    } else if (!response.allowProcessing && response.reason === "session_limit_reached") {
-                        startButton.disabled = true;
-                        statusDisplay.textContent = `Session limit (${response.maxSessionLinks}) reached. Wait for reset.`;
-                    } else { // Not allowing processing, or no file selected, or invalid file
-                        startButton.disabled = true;
-                        if (isFileCurrentlySelectedAndValid && !response.allowProcessing) { // Valid file, but can't process (e.g. session limit)
-                             statusDisplay.textContent = `File selected. Session limit (${response.maxSessionLinks}) reached.`;
-                        } else if (isFileCurrentlySelectedAndValid && response.allowProcessing) { // Should have been caught by first if in this block
-                             statusDisplay.textContent = statusMsgIfReadyAndFileSelected || `Ready. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used. ${response.linksAvailableInSession} available.`;
-                        } else if (csvFileInput.value === '') { // No file selected
-                             statusDisplay.textContent = `Ready. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used. Select CSV.`;
-                        }
-                        // If file is selected but not valid CSV, the file input's 'change' handler already set the error message.
+            if (response.status === "cooldown_active" && response.reason === "hard_cooldown") {
+                displayHardCooldown(response.remainingMs);
+            } else if (response.status === "usage_info") {
+                clearCooldownDisplayUpdater();
+                enablePrimaryInputs(); // Enable inputs for adding more URLs
+
+                const canStartProcessing = response.allowProcessing && isFileOrUrlQueued;
+                startButton.disabled = !canStartProcessing;
+
+                if (canStartProcessing) {
+                    statusDisplay.textContent = statusMsgIfReady || `Ready (${channelUrlsToProcess.length} in queue). Session: ${response.linksUsedInSession}/${response.maxSessionLinks}.`;
+                } else if (!response.allowProcessing && response.reason === "session_limit_reached") {
+                    statusDisplay.textContent = `Session limit (${response.maxSessionLinks}). Queue: ${channelUrlsToProcess.length}.`;
+                } else { // Not processing for other reasons or no items to process
+                    if (channelUrlsToProcess.length > 0) { // Items in queue, but cannot start (e.g. session limit just hit)
+                        statusDisplay.textContent = `Queue: ${channelUrlsToProcess.length}. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used.`;
+                    } else { // No items in queue
+                        statusDisplay.textContent = `Ready. Session: ${response.linksUsedInSession}/${response.maxSessionLinks} used. Select file or add URL.`;
                     }
                 }
-            } else {
-                statusDisplay.textContent = "Could not get status from background.";
-                startButton.disabled = true; // Safer default
-                csvFileInput.disabled = false;
             }
         });
     }
 
-    // --- Other Helper Functions ---
-    function startVisualCountdown(durationSeconds) {
-        clearCountdown();
-        let timeLeft = durationSeconds;
-        countdownDisplay.textContent = `${timeLeft}s`;
-        countdownDisplay.style.display = "block";
-
+    // --- Other Helper Functions (startVisualCountdown, clearCountdown, clearCooldownDisplayUpdater, resetControls) --- (No change from v2.3)
+    function startVisualCountdown(durationSeconds) { /* ... same ... */
+        clearCountdown(); let timeLeft = durationSeconds;
+        countdownDisplay.textContent = `${timeLeft}s`; countdownDisplay.style.display = "block";
         countdownInterval = setInterval(() => {
-            timeLeft--;
-            countdownDisplay.textContent = `${timeLeft}s`;
-            if (timeLeft <= 0) {
-                clearCountdown();
-                countdownDisplay.style.display = "none";
-            }
+            timeLeft--; countdownDisplay.textContent = `${timeLeft}s`;
+            if (timeLeft <= 0) { clearCountdown(); countdownDisplay.style.display = "none"; }
         }, 1000);
     }
-
-    function clearCountdown() {
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-        }
+    function clearCountdown() { /* ... same ... */
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
     }
-
-    function clearCooldownDisplayUpdater() {
-        if (cooldownUpdateInterval) {
-            clearInterval(cooldownUpdateInterval);
-            cooldownUpdateInterval = null;
-        }
+    function clearCooldownDisplayUpdater() { /* ... same ... */
+        if (cooldownUpdateInterval) { clearInterval(cooldownUpdateInterval); cooldownUpdateInterval = null; }
     }
-
-    function resetControls(clearFile = true) {
-        // Most control enabling/disabling is now handled by checkUsageAndSetButtonState
-        // or displayHardCooldown
-        csvFileInput.disabled = false; // Generally, allow file selection
-        if (clearFile) {
-            csvFileInput.value = ''; // Clear the selected file
-            // Status display will be updated by checkUsageAndSetButtonState or other flows
+    function resetControls(clearAllUserInputsAndQueue = true) {
+        enablePrimaryInputs(); // This also updates clearQueueButton
+        if (clearAllUserInputsAndQueue) {
+            fileInput.value = '';
+            youtubeUrlInput.value = '';
+            singleUrlStatus.textContent = ''; // Clear specific feedback
+            channelUrlsToProcess = [];
+            updateClearQueueButton(); // Explicitly update after clearing queue
         }
-        // Start button state is determined by cooldown/session status
+        // Let checkUsageAndSetButtonState handle the main status and start button
+        checkUsageAndSetButtonState(channelUrlsToProcess.length > 0);
     }
 
     // Initial check when popup loads
-    checkUsageAndSetButtonState(csvFileInput.files && csvFileInput.files.length > 0 && csvFileInput.files[0].name.endsWith('.csv'));
+    checkUsageAndSetButtonState(channelUrlsToProcess.length > 0); // Check based on if queue might have persisted (it doesn't yet)
 });

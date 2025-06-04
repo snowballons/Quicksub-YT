@@ -1,8 +1,8 @@
 // background/background_main.js
-console.log("Background service worker v2.1 (Session Logic) started.");
+console.log("Background service worker v2.5 (Webpage Scan) started.");
 
-import { canProcessStart, clearAllUsageStateForTesting } from './cooldown_manager.js'; // Updated import
-import { processUrls } from './processing_engine.js';
+import { canProcessStart, clearAllUsageStateForTesting } from './cooldown_manager.js';
+import { processUrls, fetchAndScanWebpage } from './processing_engine.js'; // Added fetchAndScanWebpage
 
 chrome.runtime.onInstalled.addListener(async () => {
   console.log("YouTube Timed Subscriber extension installed/updated.");
@@ -61,5 +61,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     })();
     return true;
+  } else if (message.action === "extractChannelFromVideo") { // Make this dormant
+    console.log("Background received 'extractChannelFromVideo' request (feature currently deferred):", message.videoUrl);
+    sendResponse({ error: "Extracting channels from video URLs is currently not supported." });
+    // No async work, so return true is not strictly needed but harmless.
+    return true;
+  } else if (message.action === "scanWebpageForChannels") { // NEW HANDLER
+    (async () => {
+        if (!message.pageUrl) {
+            sendResponse({ error: "No page URL provided for scanning." });
+            return;
+        }
+        console.log("BG: Received request to scan webpage:", message.pageUrl);
+        const result = await fetchAndScanWebpage(message.pageUrl);
+        sendResponse(result); // result is { foundUrls?, error?, message? }
+    })();
+    return true; // Crucial for async response
   }
 });

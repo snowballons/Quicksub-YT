@@ -2,7 +2,8 @@
 import {
     HARD_COOLDOWN_DURATION_MS,
     CURRENT_SESSION_RESET_DURATION_MS,
-    CURRENT_SESSION_LINK_ALLOWANCE
+    CURRENT_SESSION_LINK_ALLOWANCE,
+    DEBUG_MODE
 } from '../shared/constants.js';
 
 const USAGE_STATE_KEY = 'usageState';
@@ -40,7 +41,7 @@ export async function updateUsageState(updates) {
         const currentState = await getUsageState();
         const newState = { ...currentState, ...updates };
         await chrome.storage.local.set({ [USAGE_STATE_KEY]: newState });
-        console.log("Usage state updated:", newState);
+        if (DEBUG_MODE) console.log("Usage state updated:", newState);
         return newState;
     } catch (error) {
         console.error("Error updating usage state:", error);
@@ -57,7 +58,7 @@ export function resetSessionIfNeeded(usageState) {
         (Date.now() - usageState.lastActivityTimestamp > CURRENT_SESSION_RESET_DURATION_MS)) {
 
         if (usageState.linksUsedInSession > 0 || usageState.lastActivityTimestamp > 0) {
-            console.log("Session reset due to inactivity.");
+            if (DEBUG_MODE) console.log("Session reset due to inactivity.");
             usageState.linksUsedInSession = 0;
             // lastActivityTimestamp will be updated upon next activity.
             // No need to clear hardCooldownUntil here; it's independent.

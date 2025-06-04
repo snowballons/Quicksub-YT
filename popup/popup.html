@@ -64,21 +64,40 @@
         display: flex; /* To align Start and Clear buttons */
         justify-content: space-between; /* Puts space between start and clear */
     }
-    #statusDisplay {
-      margin-top: 15px;
+    #statusDisplay, #singleUrlStatus { /* Common base styles */
+      margin-top: 10px; /* Adjusted singleUrlStatus margin-top */
       padding: 10px;
       border: 1px solid #ddd;
       background-color: #f9f9f9;
-      min-height: 40px;
+      min-height: 1.5em; /* Adjusted to fit text better */
       word-wrap: break-word;
       border-radius: 3px;
+      font-size: 0.9em; /* Consistent font size */
+      line-height: 1.4;
     }
-    #singleUrlStatus { /* Feedback for single URL add / scan */
-        font-size: 0.9em;
-        margin-top: 3px;
-        min-height: 1.2em; /* Reserve space */
-        color: #555;
+
+    /* NEW Styles for message types */
+    .status-message { /* Default/Info */
+      border-left: 4px solid #2196F3; /* Blue */
+      background-color: #e3f2fd;
+      color: #1e88e5;
     }
+    .status-success {
+      border-left: 4px solid #4CAF50; /* Green */
+      background-color: #e8f5e9;
+      color: #388e3c;
+    }
+    .status-error {
+      border-left: 4px solid #f44336; /* Red */
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    .status-warning {
+      border-left: 4px solid #FF9800; /* Orange */
+      background-color: #fff3e0;
+      color: #ef6c00;
+    }
+    /* End of NEW Styles */
     #countdownDisplay {
       margin-top: 10px;
       font-weight: bold;
@@ -106,7 +125,7 @@
       <input type="text" id="youtubeUrlInput" placeholder="e.g., https://youtube.com/@channel, https://site.com/list" style="flex-grow: 1; margin-right: 5px;">
       <button id="addUrlButton">Add/Scan</button>
     </div>
-    <div id="singleUrlStatus"></div>
+    <div id="singleUrlStatus" class="status-message"></div> <!-- Add base class -->
   </div>
 
   <hr>
@@ -119,7 +138,7 @@
     <button id="clearQueueButton">Clear Queue (0)</button>
   </div>
 
-  <div id="statusDisplay">Ready. Add URLs or select a file.</div>
+  <div id="statusDisplay" class="status-message">Ready. Add URLs or select a file.</div> <!-- Add base class -->
   <div id="countdownDisplay" style="display:none;"></div>
 
   <!-- Load shared helpers first, then popup specific logic -->

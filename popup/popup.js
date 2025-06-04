@@ -1,7 +1,7 @@
 // popup/popup.js
 import { isValidYouTubeChannelUrl, formatTime } from '../shared/helpers.js';
 
-console.log("Popup script v2.6 (UI Polish: Clear Queue & Icon) loaded.");
+console.log("Popup script v2.7 (Styled Statuses) loaded.");
 
 document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
@@ -17,31 +17,53 @@ document.addEventListener('DOMContentLoaded', function() {
     let countdownInterval = null;
     let cooldownUpdateInterval = null;
 
+    // --- NEW Helper function to set status with type ---
+    /**
+     * Sets the status message with a specific type for styling.
+     * @param {HTMLElement} element - The status display element (statusDisplay or singleUrlStatus).
+     * @param {string} message - The message text.
+     * @param {string} type - 'info' (default), 'success', 'error', 'warning'.
+     */
+    function setStatus(element, message, type = 'info') {
+        element.textContent = message;
+        element.className = ''; // Clear existing type classes
+        element.classList.add(`status-${type}`); // Add new type class
+    }
+
+    // --- Initialize ---
     startButton.disabled = true;
     updateClearQueueButton(); // Initialize clear queue button text
+    // Initial status using the new helper
+    setStatus(statusDisplay, 'Ready. Add URLs or select a file.', 'info');
+    setStatus(singleUrlStatus, '', 'info'); // Clear single URL status initially
     checkUsageAndSetButtonState(); // Initial UI setup
 
-    // --- File Input Listener --- (No change from v2.3)
-    fileInput.addEventListener('change', function(event) { /* ... same as v2.3 ... */
+    // --- File Input Listener ---
+    fileInput.addEventListener('change', function(event) {
         clearCountdown(); clearCooldownDisplayUpdater(); startButton.disabled = true;
+        setStatus(singleUrlStatus, '', 'info'); // Clear single URL status
+
         if (event.target.files && event.target.files.length > 0) {
             const file = event.target.files[0];
             if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
-                handleFileProcessing(file);
+                handleFileProcessing(file); // This will call setStatus internally now
             } else {
-                singleUrlStatus.textContent = ''; statusDisplay.textContent = 'Error: Please select a .csv or .txt file.';
+                setStatus(statusDisplay, 'Error: Please select a .csv or .txt file.', 'error');
                 fileInput.value = ''; updateStartButtonBasedOnQueueAndCooldown();
             }
-        } else { updateStartButtonBasedOnQueueAndCooldown(); }
+        } else {
+            // Rely on checkUsageAndSetButtonState to set main status if no file is chosen after selection
+            updateStartButtonBasedOnQueueAndCooldown();
+        }
     });
 
-    // --- MODIFIED Add URL Button Listener (Smart: YouTube URLs or Webpage Scan) ---
+    // --- Add URL/Scan Button Listener ---
     addUrlButton.addEventListener('click', function() {
-        const urlString = youtubeUrlInput.value.trim(); // Can be one or more YT URLs, or one webpage URL
-        singleUrlStatus.textContent = '';
+        const urlString = youtubeUrlInput.value.trim();
+        setStatus(singleUrlStatus, '', 'info'); // Clear previous
 
         if (!urlString) {
-            singleUrlStatus.textContent = 'Please enter URL(s) or a webpage link.';
+            setStatus(singleUrlStatus, 'Please enter URL(s) or a webpage link.', 'warning');
             return;
         }
 
@@ -61,17 +83,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isPotentiallyScannableWebpage) {
             // --- Initiate Webpage Scan ---
-            singleUrlStatus.textContent = `Scanning webpage: ${urlString.substring(0,40)}...`;
-            disableAllInputs(); // Disable inputs during scan
+            setStatus(singleUrlStatus, `Scanning webpage: ${urlString.substring(0,40)}...`, 'info');
+            disableAllInputs();
             chrome.runtime.sendMessage(
                 { action: "scanWebpageForChannels", pageUrl: urlString },
                 handleWebpageScanResponse
             );
         } else {
-            // --- Process as Comma-Separated YouTube URLs (Logic from v2.4) ---
+            // --- Process as Comma-Separated YouTube URLs ---
             const urlsArray = urlString.split(',').map(url => url.trim()).filter(url => url);
             let addedCount = 0; let invalidCount = 0; let videoUrlFound = false;
-            if (urlsArray.length === 0) { singleUrlStatus.textContent = 'No URLs after trimming.'; return; }
+            if (urlsArray.length === 0) {
+                setStatus(singleUrlStatus, 'No URLs after trimming.', 'warning');
+                return;
+            }
 
             urlsArray.forEach(url => {
                 try { new URL(url); } catch (_) { invalidCount++; return; }
@@ -88,7 +113,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (addedCount > 0) message += `${addedCount} valid channel URL(s) added. `;
             if (videoUrlFound) message += `Video URLs ignored (feature deferred). `;
             if (invalidCount > 0) message += `${invalidCount} invalid/non-channel entries ignored.`;
-            singleUrlStatus.textContent = message.trim() || "No new valid channel URLs processed.";
+
+            if (message) {
+                setStatus(singleUrlStatus, message.trim(), addedCount > 0 ? 'success' : 'info');
+            } else if (!videoUrlFound && !invalidCount && addedCount === 0) {
+                setStatus(singleUrlStatus, "No new unique URLs added (possibly duplicates).", 'info');
+            }
 
             if (addedCount > 0 || channelUrlsToProcess.length > 0) youtubeUrlInput.value = '';
             updateMainStatusWithQueueCount();
@@ -96,24 +126,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Start Button Listener --- (No change from v2.3)
-    startButton.addEventListener('click', function() { /* ... same as v2.3 ... */
+    // --- Start Button Listener ---
+    startButton.addEventListener('click', function() {
         clearCountdown(); clearCooldownDisplayUpdater();
-        if (channelUrlsToProcess.length === 0) { statusDisplay.textContent = 'Error: No URLs in queue.'; return; }
-        statusDisplay.textContent = `Attempting to start processing ${channelUrlsToProcess.length} URLs...`;
+        if (channelUrlsToProcess.length === 0) {
+            setStatus(statusDisplay, 'Error: No URLs in queue to process.', 'error');
+            return;
+        }
+        setStatus(statusDisplay, `Attempting to start processing ${channelUrlsToProcess.length} URLs...`, 'info');
         disableAllInputs();
         chrome.runtime.sendMessage( { action: "startProcessingUrls", urls: channelUrlsToProcess }, handleBackgroundResponseForStart );
     });
 
-    // --- Clear Queue Button Listener --- (NEW)
+    // --- Clear Queue Button Listener ---
     clearQueueButton.addEventListener('click', function() {
         channelUrlsToProcess = [];
-        singleUrlStatus.textContent = 'URL queue cleared.';
+        setStatus(singleUrlStatus, 'URL queue cleared.', 'success');
         youtubeUrlInput.value = ''; // Optionally clear the input field too
         fileInput.value = ''; // Clear selected file
         updateClearQueueButton();
         updateMainStatusWithQueueCount(); // This will call checkUsageAndSetButtonState
-        // If a cooldown is active, statusDisplay will show that, otherwise it'll show ready state.
     });
 
     // --- Helper to add URL to queue (internal, returns true if added, false if duplicate) ---
@@ -132,35 +164,37 @@ document.addEventListener('DOMContentLoaded', function() {
         clearQueueButton.disabled = channelUrlsToProcess.length === 0;
     }
 
-    // --- Helper function to handle webpage scan response --- (NEW)
+    // --- Handle Webpage Scan Response ---
     function handleWebpageScanResponse(response) {
-        enablePrimaryInputs(); // Re-enable inputs after scan attempt
-        updateStartButtonBasedOnQueueAndCooldown(); // Update start button state
+        enablePrimaryInputs();
+        updateStartButtonBasedOnQueueAndCooldown();
 
         if (chrome.runtime.lastError) {
-            singleUrlStatus.textContent = `Error scanning page: ${chrome.runtime.lastError.message}`;
+            setStatus(singleUrlStatus, `Error scanning page: ${chrome.runtime.lastError.message}`, 'error');
             return;
         }
+
         if (response && response.error) {
-            singleUrlStatus.textContent = `Scan error: ${response.error}`;
+            setStatus(singleUrlStatus, `Scan error: ${response.error}`, 'error');
             if (response.foundUrls && response.foundUrls.length > 0) { // If some URLs were found before an error
                 let newUrlsAddedCount = 0;
                 response.foundUrls.forEach(url => { if (addUrlToQueueInternal(url)) newUrlsAddedCount++; });
-                singleUrlStatus.textContent += ` Found ${newUrlsAddedCount} URL(s) before error.`;
+                setStatus(singleUrlStatus, `Scan error: ${response.error} Found ${newUrlsAddedCount} URL(s) before error.`, 'warning');
             }
         } else if (response && response.foundUrls) {
             if (response.foundUrls.length > 0) {
                 let newUrlsAddedCount = 0;
                 response.foundUrls.forEach(url => { if (addUrlToQueueInternal(url)) newUrlsAddedCount++; });
-                singleUrlStatus.textContent = `Scan complete: ${newUrlsAddedCount} new unique YouTube channel URL(s) added to queue.`;
-                if (newUrlsAddedCount === 0 && response.foundUrls.length > 0) {
-                    singleUrlStatus.textContent = `Scan complete: Found ${response.foundUrls.length} channel URLs (already in queue or duplicates on page).`;
+                if (newUrlsAddedCount > 0) {
+                    setStatus(singleUrlStatus, `Scan complete: ${newUrlsAddedCount} new unique URL(s) added.`, 'success');
+                } else {
+                    setStatus(singleUrlStatus, `Scan complete: Found ${response.foundUrls.length} (already in queue/duplicates).`, 'info');
                 }
             } else {
-                singleUrlStatus.textContent = response.message || "Scan complete: No YouTube channel URLs found on the page.";
+                setStatus(singleUrlStatus, response.message || "Scan complete: No YouTube channel URLs found.", 'info');
             }
         } else {
-            singleUrlStatus.textContent = "Scan failed: Unknown response from background.";
+            setStatus(singleUrlStatus, "Scan failed: Unknown response.", 'error');
         }
         youtubeUrlInput.value = ''; // Clear input after scan attempt
         updateMainStatusWithQueueCount();
@@ -182,14 +216,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // startButton state determined by checkUsageAndSetButtonState
     }
 
-    // --- Modified updateMainStatusWithQueueCount & updateStartButtonBasedOnQueueAndCooldown ---
+    // --- Modified updateMainStatusWithQueueCount ---
     function updateMainStatusWithQueueCount() {
-        updateClearQueueButton(); // Keep clear button count updated
+        updateClearQueueButton();
         if (channelUrlsToProcess.length > 0) {
-            if (!statusDisplay.textContent.toLowerCase().includes("cooldown") && !statusDisplay.textContent.toLowerCase().includes("session limit")) {
-                 checkUsageAndSetButtonState(true);
+            // If no critical message (cooldown/session limit) is displayed, update with queue info
+            if (!statusDisplay.classList.contains('status-error') && !statusDisplay.classList.contains('status-warning')) {
+                 checkUsageAndSetButtonState(true); // This will set an appropriate info message
             }
-        } else { checkUsageAndSetButtonState(false); }
+        } else {
+             checkUsageAndSetButtonState(false); // This will set "Ready..." or cooldown message
+        }
     }
     function updateStartButtonBasedOnQueueAndCooldown() {
         updateClearQueueButton(); // Also update clear button when start button state might change
@@ -260,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Message Listener from Background ---
     // REMOVE/COMMENT OUT "channelExtracted" and "channelExtractionFailed" handlers or make them note feature is deferred
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         // Re-enable single URL add button unless an action is taking place that disables it
         // This logic becomes simpler as we don't wait for background for single URL adds anymore (except for start processing)
         if(message.action !== "startProcessingUrls" && message.action !== "showCountdown") {
@@ -394,18 +431,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearCooldownDisplayUpdater() { /* ... same ... */
         if (cooldownUpdateInterval) { clearInterval(cooldownUpdateInterval); cooldownUpdateInterval = null; }
     }
-    function resetControls(clearAllUserInputsAndQueue = true) {
-        enablePrimaryInputs(); // This also updates clearQueueButton
-        if (clearAllUserInputsAndQueue) {
-            fileInput.value = '';
-            youtubeUrlInput.value = '';
-            singleUrlStatus.textContent = ''; // Clear specific feedback
-            channelUrlsToProcess = [];
-            updateClearQueueButton(); // Explicitly update after clearing queue
-        }
-        // Let checkUsageAndSetButtonState handle the main status and start button
-        checkUsageAndSetButtonState(channelUrlsToProcess.length > 0);
-    }
+
 
     // Initial check when popup loads
     checkUsageAndSetButtonState(channelUrlsToProcess.length > 0); // Check based on if queue might have persisted (it doesn't yet)

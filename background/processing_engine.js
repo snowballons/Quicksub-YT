@@ -3,7 +3,8 @@ import {
     MAX_CHANNELS_PER_BATCH,
     INTERACTIVE_WINDOW_SECONDS,
     POST_INTERACTIVE_DELAY_MS,
-    CURRENT_SESSION_LINK_ALLOWANCE
+    CURRENT_SESSION_LINK_ALLOWANCE,
+    DEBUG_MODE
 } from '../shared/constants.js';
 import { sleep } from '../shared/helpers.js';
 import { recordLinkProcessed, triggerHardCooldown, getUsageState } from './cooldown_manager.js';
@@ -14,7 +15,7 @@ export async function processUrls(urls, linksAvailableForThisBatchFromManager) {
     const numToProcess = Math.min(urls.length, linksAvailableForThisBatchFromManager, MAX_CHANNELS_PER_BATCH);
 
     if (numToProcess <= 0) {
-        console.log("No links to process in this batch or session allowance met.");
+        if (DEBUG_MODE) console.log("No links to process in this batch or session allowance met.");
         chrome.runtime.sendMessage({
             action: "processingCompleteNoCooldown",
             message: "No links processed (batch limit or session allowance met)."
@@ -22,7 +23,7 @@ export async function processUrls(urls, linksAvailableForThisBatchFromManager) {
         return;
     }
 
-    console.log(`Processing batch of up to ${numToProcess} channels (available: ${linksAvailableForThisBatchFromManager}).`);
+    console.log(`Processing batch of ${numToProcess} channels (available: ${linksAvailableForThisBatchFromManager}).`);
     let channelsSuccessfullyPresentedThisRun = 0;
 
     for (let i = 0; i < numToProcess; i++) {
@@ -33,7 +34,7 @@ export async function processUrls(urls, linksAvailableForThisBatchFromManager) {
         if (displayName.startsWith('@')) displayName = displayName.substring(1);
         if (displayName.startsWith('UC') && displayName.length > 20) displayName = "Channel";
 
-        console.log(`Preparing channel (session link #${channelNumberOverall}): ${displayName} (${channelUrl})`);
+        if (DEBUG_MODE) console.log(`Preparing channel (session link #${channelNumberOverall}): ${displayName} (${channelUrl})`);
 
         // Send message to popup for countdown display
         chrome.runtime.sendMessage({
@@ -55,11 +56,11 @@ export async function processUrls(urls, linksAvailableForThisBatchFromManager) {
             // Don't increment linksUsedInSession or channelsSuccessfullyPresentedThisRun if tab fails
         }
 
-        console.log(`Waiting ${INTERACTIVE_WINDOW_SECONDS}s for user interaction on ${displayName}...`);
+        if (DEBUG_MODE) console.log(`Waiting ${INTERACTIVE_WINDOW_SECONDS}s for user interaction on ${displayName}...`);
         await sleep(INTERACTIVE_WINDOW_SECONDS * 1000);
 
         if (i < numToProcess - 1) { // If not the last link in THIS BATCH
-            console.log(`Waiting ${POST_INTERACTIVE_DELAY_MS / 1000}s before next channel...`);
+            if (DEBUG_MODE) console.log(`Waiting ${POST_INTERACTIVE_DELAY_MS / 1000}s before next channel...`);
             await sleep(POST_INTERACTIVE_DELAY_MS);
         }
     } // End of for loop
@@ -86,9 +87,13 @@ export async function processUrls(urls, linksAvailableForThisBatchFromManager) {
     }
 }
 
-// --- MODIFIED FUNCTION for extracting channel URL from video page ---
+// --- Offscreen Document Management ---
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html'; // Relative to extension root
 
+/**
+ * Checks if an offscreen document already exists.
+ * Uses modern MV3 API with fallback for older Chrome versions.
+ */
 async function hasOffscreenDocument() {
     const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
     if (chrome.runtime.getContexts) { // MV3 way to check for existing contexts
@@ -97,8 +102,7 @@ async function hasOffscreenDocument() {
             documentUrls: [offscreenUrl]
         });
         return contexts.length > 0;
-    } else { // Fallback for older Chrome versions or if getContexts is not available
-        // This is less reliable
+    } else { // Fallback for older Chrome versions
         // @ts-ignore - clients is a global in service workers
         const matchedClients = await clients.matchAll();
         for (const client of matchedClients) {
@@ -184,19 +188,8 @@ export async function extractChannelUrlFromVideoPage(videoUrl) {
     // Or you can explicitly call: if (await hasOffscreenDocument()) await chrome.offscreen.closeDocument();
 }
 
-// --- NEW FUNCTION for fetching and initiating scan of a webpage ---
-const OFFSCREEN_DOCUMENT_PATH_SCAN = 'offscreen.html'; // Can be same offscreen doc
-
-async function hasOffscreenDocumentForScan() { // Can reuse or adapt previous hasOffscreenDocument
-    const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH_SCAN);
-    if (chrome.runtime.getContexts) {
-        const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'], documentUrls: [offscreenUrl] });
-        return contexts.length > 0;
-    } // else { /* ... fallback ... */ }
-    return false; // Simplified fallback
-}
-
-let creatingOffscreenScanDocument = null;
+// --- Webpage Scanning Function ---
+// Note: Uses the same offscreen document as video extraction
 
 export async function fetchAndScanWebpage(pageUrl) {
     try {
@@ -209,23 +202,24 @@ export async function fetchAndScanWebpage(pageUrl) {
         const htmlText = await response.text();
         console.log(`BG: Fetched webpage HTML, length: ${htmlText.length}. Preparing offscreen for scan.`);
 
-        if (!creatingOffscreenScanDocument) {
-            creatingOffscreenScanDocument = (async () => {
-                if (!(await hasOffscreenDocumentForScan())) {
-                    console.log("BG: Creating offscreen document for webpage scan.");
+        // Reuse the same offscreen document creation logic
+        if (!creatingOffscreenDocument) {
+            creatingOffscreenDocument = (async () => {
+                if (!(await hasOffscreenDocument())) {
+                    if (DEBUG_MODE) console.log("BG: Creating offscreen document for webpage scan.");
                     await chrome.offscreen.createDocument({
-                        url: OFFSCREEN_DOCUMENT_PATH_SCAN,
+                        url: OFFSCREEN_DOCUMENT_PATH,
                         reasons: [chrome.offscreen.Reason.DOM_PARSER],
                         justification: 'Parse HTML from arbitrary webpage to find YouTube links',
                     }).catch(err => {
                         console.error("BG: Error creating offscreen for scan:", err);
-                        creatingOffscreenScanDocument = null; throw err;
+                        creatingOffscreenDocument = null; throw err;
                     });
                 }
-                creatingOffscreenScanDocument = null;
+                creatingOffscreenDocument = null;
             })();
         }
-        await creatingOffscreenScanDocument;
+        await creatingOffscreenDocument;
 
 
         return new Promise((resolve) => {

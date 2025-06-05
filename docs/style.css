@@ -407,3 +407,56 @@ footer a:hover {
         justify-content: center;
     }
 }
+
+/* --- Legal Info / Policies Section --- */
+#legal-info h2 {
+    margin-bottom: 40px;
+}
+
+.policies-container {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: left; /* Override centered text for articles */
+}
+
+.policies-container article {
+    margin-bottom: 40px;
+    padding: 20px;
+    background-color: var(--bg-light);
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.policies-container h3 {
+    font-size: 1.8em;
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--secondary-color);
+    padding-bottom: 10px;
+}
+
+.policies-container h4 {
+    font-size: 1.3em;
+    color: var(--dark-text);
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.policies-container p, .policies-container ul li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    color: #555; /* Slightly lighter text for policy content */
+}
+
+.policies-container ul {
+    padding-left: 20px;
+}
+
+.policy-divider {
+    border: 0;
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 40px auto; /* Space between policy articles */
+    width: 80%;
+}

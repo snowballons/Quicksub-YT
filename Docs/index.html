@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Channel Importer - Batch Subscribe Made Easy</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Favicon (optional but recommended) -->
+    <link rel="icon" href="../icons/icon48.png" type="image/png">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo-container">
+                <img src="../icons/icon48.png" alt="Extension Logo" class="logo-img">
+                <h1>YT Channel Importer</h1>
+            </div>
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-to-use">How to Use</a></li>
+                <li><a href="#pricing">Upgrade</a></li>
+                <li><a href="#download">Install</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="hero">
+        <div class="hero-content">
+            <h2>Batch Import & Subscribe to YouTube Channels Effortlessly!</h2>
+            <p>Stop subscribing one by one. Import lists from files, webpages, or add URLs directly and let our extension guide you through subscribing quickly and safely.</p>
+            <div class="cta-buttons">
+                <a href="YOUR_CHROME_WEB_STORE_LINK_HERE" class="cta-button chrome" target="_blank" id="installChrome">
+                    <img src="chrome-icon.svg" alt="Chrome Icon" class="store-icon"> Install for Chrome
+                </a>
+                <a href="YOUR_FIREFOX_ADDON_LINK_HERE" class="cta-button firefox disabled" target="_blank" id="installFirefox">
+                     <img src="firefox-icon.svg" alt="Firefox Icon" class="store-icon"> Install for Firefox (Coming Soon)
+                </a>
+            </div>
+        </div>
+        <div class="hero-image-container">
+            <!-- Placeholder for a nice screenshot or GIF of the extension popup -->
+            <img src="assets/extension_screenshot_placeholder.png" alt="Extension Popup Screenshot" class="hero-image">
+        </div>
+    </section>
+
+    <section id="features" class="content-section">
+        <h2>Powerful Features</h2>
+        <div class="features-grid">
+            <div class="feature-item">
+                <img src="assets/feature-icon-list.svg" alt="List Icon">
+                <h3>Multiple Input Methods</h3>
+                <p>Import channel lists from CSV, TXT files, scan webpages for links, or add URLs directly.</p>
+            </div>
+            <div class="feature-item">
+                <img src="assets/feature-icon-timer.svg" alt="Timer Icon">
+                <h3>Timed & Safe Processing</h3>
+                <p>Processes channels with timed intervals to mimic human behavior and respect YouTube's guidelines.</p>
+            </div>
+            <div class="feature-item">
+                <img src="assets/feature-icon-session.svg" alt="Session Icon">
+                <h3>Session Management</h3>
+                <p>Generous free tier with session allowances and inactivity resets to keep you productive.</p>
+            </div>
+            <div class="feature-item">
+                <img src="assets/feature-icon-ui.svg" alt="UI Icon">
+                <h3>User-Friendly Interface</h3>
+                <p>Clear status updates and an intuitive popup make managing your subscriptions easy.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-to-use" class="content-section alt-bg">
+        <h2>How to Use</h2>
+        <div class="how-to-steps">
+            <div class="step">
+                <span>1</span>
+                <h3>Add Channels</h3>
+                <p>Upload a .csv/.txt file, paste comma-separated channel URLs, or enter a webpage URL to scan for links.</p>
+            </div>
+            <div class="step">
+                <span>2</span>
+                <h3>Start Processing</h3>
+                <p>Click "Start Processing". The extension will open each channel page one by one.</p>
+            </div>
+            <div class="step">
+                <span>3</span>
+                <h3>Subscribe Manually</h3>
+                <p>You'll have a 10-second window on each channel page to click the "Subscribe" button yourself.</p>
+            </div>
+            <div class="step">
+                <span>4</span>
+                <h3>Cooldown & Reset</h3>
+                <p>Respect session limits. After processing a batch or using your session allowance, cooldowns apply. Inactivity resets your session!</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="content-section">
+        <h2>Upgrade to Advanced</h2>
+        <p>Unlock more power and convenience with the Advanced version. Perfect for power users and content curators!</p>
+        <div class="pricing-plan">
+            <div class="plan-header">
+                <h3>Free Version</h3>
+                <p class="price-tag">Always Free</p>
+            </div>
+            <ul class="plan-features">
+                <li>Process up to <strong>15</strong> channels per session</li>
+                <li>1-hour session inactivity reset</li>
+                <li>1-hour hard cooldown after session limit</li>
+                <li>Manual subscription clicks</li>
+                <li>File & URL input</li>
+            </ul>
+        </div>
+        <div class="pricing-plan advanced">
+            <div class="plan-header">
+                <h3>Advanced Version</h3>
+                <p class="price-tag">One-time $2 <span class="price-subtext">(USD)</span></p>
+            </div>
+            <ul class="plan-features">
+                <li>Process up to <strong>50</strong> channels per session</li>
+                <li>2-hour session inactivity reset</li>
+                <li>1-hour hard cooldown (still applies for safety)</li>
+                <li><del>Manual subscription clicks</del> (Feature was deferred)</li>
+                <li><strong>Priority Support (Future)</strong></li>
+                <li><strong>All input methods</strong></li>
+                <li>More features coming soon!</li>
+            </ul>
+            <button id="upgradeButton" class="cta-button upgrade-button">Upgrade Now for $2</button>
+            <p class="key-info">You'll receive an activation key via email to unlock Advanced features.</p>
+        </div>
+    </section>
+
+    <section id="download" class="content-section alt-bg">
+        <h2>Get Started Now!</h2>
+        <p>Install the YT Channel Importer extension and streamline your YouTube subscriptions today.</p>
+         <div class="cta-buttons">
+            <a href="YOUR_CHROME_WEB_STORE_LINK_HERE" class="cta-button chrome" target="_blank">
+                <img src="chrome-icon.svg" alt="Chrome Icon" class="store-icon"> Add to Chrome
+            </a>
+            <a href="YOUR_FIREFOX_ADDON_LINK_HERE" class="cta-button firefox disabled" target="_blank">
+                 <img src="firefox-icon.svg" alt="Firefox Icon" class="store-icon"> Get for Firefox (Soon)
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <p>© <span id="currentYear"></span> Your Extension Name/Your Name. All rights reserved.</p>
+        <p><a href="#privacy">Privacy Policy (Example)</a> | <a href="mailto:support@example.com">Contact Support</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,6 +1,5 @@
 // popup/popup.js
 import { isValidYouTubeChannelUrl, formatTime } from '../shared/helpers.js';
-
 console.log("Popup script v2.7 (Styled Statuses) loaded.");
 
 document.addEventListener('DOMContentLoaded', function() {

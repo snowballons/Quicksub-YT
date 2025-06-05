@@ -120,7 +120,7 @@
   </div>
 
   <div id="singleUrlSection" style="margin-bottom: 10px;">
-    <label for="youtubeUrlInput">Add YouTube Channel URL(s) (comma-separated) or Webpage to Scan:</label>
+    <label for="youtubeUrlInput">Enter Channel URLs (comma-separated) or a Webpage URL to Scan</label>
     <div style="display: flex; align-items: center;">
       <input type="text" id="youtubeUrlInput" placeholder="e.g., https://youtube.com/@channel, https://site.com/list" style="flex-grow: 1; margin-right: 5px;">
       <button id="addUrlButton">Add/Scan</button>
@@ -141,8 +141,7 @@
   <div id="statusDisplay" class="status-message">Ready. Add URLs or select a file.</div> <!-- Add base class -->
   <div id="countdownDisplay" style="display:none;"></div>
 
-  <!-- Load shared helpers first, then popup specific logic -->
-
+  <!-- Load popup script as ES module -->
   <script src="popup.js" type="module"></script>
 </body>
 </html>

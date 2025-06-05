@@ -1,7 +1,7 @@
 // background/background_main.js
 console.log("Background service worker v2.5 (Webpage Scan) started.");
 
-import { canProcessStart, clearAllUsageStateForTesting } from './cooldown_manager.js';
+import { canProcessStart } from './cooldown_manager.js';
 import { processUrls, fetchAndScanWebpage } from './processing_engine.js'; // Added fetchAndScanWebpage
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   // await clearAllUsageStateForTesting(); // For testing: uncomment to clear all state
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "startProcessingUrls") {
     (async () => {
         const processCheck = await canProcessStart();

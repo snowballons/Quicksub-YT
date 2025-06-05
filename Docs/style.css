@@ -1,0 +1,409 @@
+/* Docs/style.css */
+:root {
+    --primary-color: #2D6CDF; /* A nice blue */
+    --secondary-color: #FFC107; /* A vibrant yellow/gold for accents */
+    --accent-color: #4CAF50; /* Green for CTAs, success */
+    --dark-text: #333;
+    --light-text: #f8f9fa;
+    --bg-light: #ffffff;
+    --bg-alt: #f4f7f6; /* Slightly off-white for section differentiation */
+    --border-color: #e0e0e0;
+    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    --font-sans: 'Roboto', 'Segoe UI', Arial, sans-serif; /* Example font stack */
+}
+
+body {
+    font-family: var(--font-sans);
+    margin: 0;
+    padding: 0;
+    line-height: 1.7;
+    color: var(--dark-text);
+    background-color: var(--bg-light);
+}
+
+/* --- Navigation --- */
+header {
+    background-color: var(--bg-light);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 0 5%;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1em 0;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    height: 40px; /* Adjust as needed */
+    margin-right: 10px;
+}
+
+nav h1 {
+    font-size: 1.8em;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+}
+
+nav ul li {
+    margin-left: 2em;
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: var(--dark-text);
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+nav ul li a:hover {
+    color: var(--primary-color);
+}
+
+/* --- Hero Section --- */
+#hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #5A8DDE 100%); /* Example gradient */
+    color: var(--light-text);
+    padding: 80px 5%;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    text-align: left;
+    min-height: 70vh;
+}
+
+.hero-content {
+    max-width: 550px;
+    animation: fadeInSlideUp 1s ease-out;
+}
+
+#hero h2 {
+    font-size: 2.8em;
+    margin-bottom: 0.5em;
+    line-height: 1.2;
+}
+
+#hero p {
+    font-size: 1.1em;
+    margin-bottom: 1.5em;
+}
+
+.hero-image-container {
+    max-width: 450px; /* Adjust based on your screenshot */
+    animation: fadeInSlideRight 1s ease-out 0.3s;
+    animation-fill-mode: backwards; /* Start animation from initial state */
+}
+.hero-image {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+
+/* --- CTA Buttons --- */
+.cta-buttons {
+    display: flex;
+    gap: 15px; /* Space between buttons */
+    margin-top: 20px;
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+.cta-button {
+    display: inline-flex; /* For icon alignment */
+    align-items: center;
+    padding: 12px 25px;
+    text-decoration: none;
+    border-radius: 50px; /* Pill shape */
+    font-weight: bold;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+.cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.cta-button.chrome {
+    background-color: var(--accent-color);
+    color: var(--light-text);
+}
+.cta-button.firefox {
+    background-color: #FF9500; /* Firefox orange */
+    color: var(--light-text);
+}
+.cta-button.firefox.disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+.cta-button.upgrade-button {
+    background-color: var(--secondary-color);
+    color: var(--dark-text); /* Or var(--light-text) if contrast is better */
+    font-size: 1.1em;
+    padding: 15px 30px;
+}
+
+.store-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+/* --- General Content Section Styling --- */
+.content-section {
+    padding: 60px 5%;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+}
+.content-section h2 {
+    font-size: 2.5em;
+    color: var(--primary-color);
+    margin-bottom: 1em;
+    position: relative;
+    display: inline-block;
+}
+.content-section h2::after { /* Simple underline accent */
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background-color: var(--secondary-color);
+    margin: 0.3em auto 0;
+}
+
+.content-section.alt-bg {
+    background-color: var(--bg-alt);
+}
+
+/* --- Features Grid --- */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    text-align: left;
+}
+.feature-item {
+    background: var(--bg-light);
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: var(--box-shadow);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+.feature-item img { /* Assuming SVG icons for features */
+    width: 50px;
+    height: 50px;
+    margin-bottom: 15px;
+    fill: var(--primary-color); /* If SVGs are single color */
+}
+.feature-item h3 {
+    font-size: 1.4em;
+    color: var(--dark-text);
+    margin-bottom: 0.5em;
+}
+
+/* --- How to Use Steps --- */
+.how-to-steps {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+    flex-wrap: wrap;
+    text-align: left;
+}
+.step {
+    background: var(--bg-light);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: var(--box-shadow);
+    width: calc(25% - 20px); /* Adjust for 4 steps */
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+}
+.step span { /* Step number circle */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--secondary-color);
+    color: var(--dark-text);
+    border-radius: 50%;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+.step h3 {
+    font-size: 1.3em;
+    margin-bottom: 0.5em;
+}
+
+/* --- Pricing Section --- */
+#pricing {
+    display: flex;
+    flex-direction: column; /* Stack title above plans */
+    align-items: center; /* Center title and plans container */
+}
+.pricing-container { /* Added for layout */
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 30px;
+    flex-wrap: wrap; /* Allow plans to wrap */
+}
+.pricing-plan {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 30px;
+    width: 320px; /* Adjust width */
+    box-shadow: var(--box-shadow);
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+.pricing-plan.advanced {
+    border-top: 5px solid var(--secondary-color); /* Highlight advanced plan */
+}
+.plan-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.plan-header h3 {
+    font-size: 1.6em;
+    color: var(--primary-color);
+}
+.price-tag {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--dark-text);
+    margin: 0.2em 0;
+}
+.price-subtext {
+    font-size: 0.6em;
+    font-weight: normal;
+    color: #777;
+}
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 25px;
+    flex-grow: 1; /* Make feature list take available space */
+}
+.plan-features li {
+    margin-bottom: 10px;
+    padding-left: 25px;
+    position: relative;
+}
+.plan-features li::before { /* Checkmark for features */
+    content: '✔';
+    color: var(--accent-color);
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+.pricing-plan .upgrade-button {
+    margin-top: auto; /* Push button to bottom */
+    width: 100%;
+    text-align: center;
+}
+.key-info {
+    text-align: center;
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 15px;
+}
+
+/* --- Footer --- */
+footer {
+    background-color: #333;
+    color: var(--light-text);
+    text-align: center;
+    padding: 25px 5%;
+    font-size: 0.9em;
+}
+footer p {
+    margin: 0.5em 0;
+}
+footer a {
+    color: var(--secondary-color);
+    text-decoration: none;
+}
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* --- Animations --- */
+@keyframes fadeInSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInSlideRight {
+    from { opacity: 0; transform: translateX(-30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 992px) {
+    #hero {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-content {
+        margin-bottom: 40px;
+    }
+    .hero-image-container {
+        max-width: 80%; /* Allow image to be larger on smaller screens */
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 768px) {
+    nav {
+        flex-direction: column;
+    }
+    nav ul {
+        margin-top: 1em;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    nav ul li {
+        margin: 0.5em 1em;
+    }
+    #hero h2 { font-size: 2.2em; }
+    .content-section h2 { font-size: 2em; }
+    .features-grid, .how-to-steps, .pricing-container {
+        grid-template-columns: 1fr; /* Stack items */
+    }
+    .step, .pricing-plan {
+        width: 100%; /* Full width on smaller screens */
+        max-width: 400px; /* But not too wide */
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .cta-buttons {
+        justify-content: center;
+    }
+}

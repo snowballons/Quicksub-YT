@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Channel Importer</title>
+    <link rel="stylesheet" href="importer_style.css"> <!-- We'll create this stylesheet -->
+    <!-- Favicon (optional but good for tabs) -->
+    <link rel="icon" href="icons/icon48.png" type="image/png">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="icons/icon48.png" alt="Extension Icon"> <!-- Adjusted path -->
+            <h1>YouTube Channel Importer</h1>
+        </div>
+
+        <section class="input-section">
+            <h2>Add Channels to Queue</h2>
+            <div id="singleUrlSection">
+                <label for="youtubeUrlInput">Add Channel URLs (comma-separated) or Webpage URL to Scan:</label>
+                <div class="input-group">
+                    <input type="text" id="youtubeUrlInput" placeholder="e.g., youtube.com/@channel, site.com/list">
+                    <button id="addUrlButton">Add/Scan</button>
+                </div>
+                <div id="singleUrlStatus" class="status-message"></div>
+            </div>
+
+            <p class="separator-text">OR</p>
+
+            <div id="fileInputSection">
+                <label for="fileInput">Upload File (.csv or .txt):</label>
+                <input type="file" id="fileInput" accept=".csv,.txt">
+            </div>
+        </section>
+
+        <hr>
+
+        <section class="controls-section">
+            <div class="queue-info">
+                <button id="clearQueueButton" class="button-danger">Clear Queue (0)</button>
+            </div>
+            <button id="startButton" class="button-primary">Start Processing Queue</button>
+        </section>
+
+        <hr>
+
+        <section class="status-section">
+            <h2>Current Status</h2>
+            <div id="statusDisplay" class="status-message">Ready. Add URLs or select a file.</div>
+            <div id="countdownDisplay" style="display:none;"></div>
+        </section>
+    </div>
+
+    <!-- Load shared helpers first, then importer specific logic -->
+     
+    <script src="shared/helpers.js"></script>
+    <script src="importer.js"></script>
+</body>
+</html>

@@ -7,7 +7,7 @@
 
 Quicksub YT helps you manage large lists of YouTube channels by allowing you to import them from files (CSV, TXT), scan webpages for channel links, or add URLs directly. It then opens each channel page with a timed interval, giving you a window to manually subscribe, streamlining your workflow while respecting YouTube's guidelines.
 
-**(Image: A GIF or a prominent screenshot of the extension's importer page in action would be great here!)**
+
 ![Quicksub YT Screenshot](docs/assets/quicksub-yt.png)
 
 ## ✨ Features
@@ -49,7 +49,6 @@ Since the extension is not yet on the Chrome Web Store, you can load it manually
     *   **Select Folder:** A file dialog will open. Navigate to and select the folder where you unzipped the extension files (e.g., `Documents/Extensions/QuicksubYT` - select the main folder that contains `manifest.json`).
     *   The Quicksub YT extension should now appear on your Extensions page and its icon in your browser's toolbar!
 
-    **(Video: A short screen recording GIF showing these steps would be incredibly helpful for users!)**
 
 ### For Firefox Users
 

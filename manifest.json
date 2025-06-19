@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Timed Subscriber",
+  "name": "Quicksub YT",
   "version": "0.2.5",
   "description": "Assists in manually subscribing to YouTube channels from a list or webpage with timed intervals.",
   "permissions": [
@@ -29,11 +29,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "yt-timed-subscriber@yourdomain.com",
-      "strict_min_version": "109.0"
-    }
   }
 }

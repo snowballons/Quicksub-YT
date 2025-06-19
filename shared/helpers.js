@@ -5,14 +5,14 @@ export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// From popup.js
+// 
 export function isValidYouTubeChannelUrl(url) {
   if (!url || typeof url !== 'string') return false;
   const youtubeChannelRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(channel\/UC[\w-]{21}[A-Za-z0-9]|c\/[\w-]+|user\/[\w-]+|@[\w.-]+)(\/\S*)?)$/;
   return youtubeChannelRegex.test(url);
 }
 
-// From popup.js
+// From 
 export function formatTime(milliseconds) {
   if (milliseconds < 0) milliseconds = 0;
   let totalSeconds = Math.floor(milliseconds / 1000);

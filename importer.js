@@ -1,5 +1,5 @@
 // popup/popup.js
-
+import { isValidYouTubeChannelUrl, formatTime } from './shared/helpers.js';
 console.log("Importer script v (Dedicated Page) loaded.");
 
 

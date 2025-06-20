@@ -54,7 +54,7 @@ Since the extension is not yet on the Chrome Web Store, you can load it manually
 
 Quicksub YT is available directly from the Firefox Add-ons store for easy installation:
 
-*   **[ Firefox Add-on ](https://addons.mozilla.org/en-US/firefox/addon/youtube-timed-subscriber)**
+*   **[ Firefox Add-on ](https://addons.mozilla.org/en-US/firefox/addon/quicksub-yt/)**
     
     *   Simply click "Add to Firefox" on the store page.
 
